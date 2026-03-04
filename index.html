@@ -2514,10 +2514,12 @@ function exportXLSX() {
   styleRange(wsSum, "A6:B11", STY.box);
 
   wsSum["!protect"] = { password: BANKER_PW, selectLockedCells: true, selectUnlockedCells: false };
-
+  
   // =========================
   // Write sheets (clean order)
   // =========================
+  // ===== APPLY BASE FONT + VERTICAL CENTER TO ALL SHEETS (paste once) =====
+[wsReadme, wsSum, wsInputs, wsScen, wsDebt, wsCF, wsRet].forEach(applyBaseStyle);
   XLSX.utils.book_append_sheet(wb, wsReadme, "README");
   XLSX.utils.book_append_sheet(wb, wsSum, "Summary");
   XLSX.utils.book_append_sheet(wb, wsInputs, "Inputs");
