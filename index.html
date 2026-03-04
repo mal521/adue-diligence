@@ -2091,17 +2091,9 @@ function updateAll() {
   renderSummary(data);
 }
 
-// ===== XLSX EXPORT =====
-function sanitizeFilePartNoHyphen(str) {
-  return (str || "")
-    .trim()
-    .replace(/\s+/g, "")           // remove spaces (NO hyphens)
-    .replace(/[^a-zA-Z0-9]/g, ""); // remove punctuation/special chars
-}
-
-// ===== BANKER EXPORT HELPERS + STYLES (clean v3) =====
+// ===== XLSX EXPORT (CLEAN) =====
 const BANKER_PW = "model";
-const BASE_FONT = "Avenir Next"; // if not installed, Excel will substitute (usually Calibri)
+const BASE_FONT = "Avenir Next"; // Excel will substitute if not installed
 
 function sanitizeFilePartNoHyphen(str) {
   return (str || "")
@@ -2121,6 +2113,25 @@ function styleRange(ws, rangeA1, style) {
     for (let C = r.s.c; C <= r.e.c; C++) {
       const addr = XLSX.utils.encode_cell({ r: R, c: C });
       styleCell(ws, addr, style);
+    }
+  }
+}
+
+// Force Avenir + vertical middle across every EXISTING cell in a sheet
+function applyBaseStyle(ws) {
+  const ref = ws["!ref"];
+  if (!ref) return;
+
+  const range = XLSX.utils.decode_range(ref);
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      const cell = ws[addr];
+      if (!cell) continue;
+
+      cell.s = cell.s || {};
+      cell.s.font = { ...(cell.s.font || {}), name: BASE_FONT };
+      cell.s.alignment = { ...(cell.s.alignment || {}), vertical: "center" };
     }
   }
 }
@@ -2157,7 +2168,7 @@ const STY = {
     border: BORDER_THIN,
   },
   label: {
-    font: { name: BASE_FONT, sz: 10, bold: false, color: { rgb: "FF111827" } },
+    font: { name: BASE_FONT, sz: 10, color: { rgb: "FF111827" } },
     fill: { patternType: "solid", fgColor: { rgb: "FFF8FAFC" } },
     alignment: { horizontal: "left", vertical: "center" },
     border: BORDER_THIN,
@@ -2182,15 +2193,13 @@ const STY = {
     border: BORDER_THIN,
     protection: { locked: true },
   },
-  box: {
-    border: BORDER_MEDIUM_DARK, // thinner than thick black
-  }
+  box: { border: BORDER_MEDIUM_DARK }
 };
-  
+
 function exportXLSX() {
   const wb = XLSX.utils.book_new();
 
-  // Recalc formulas on open + remove gridlines (workbook-level)
+  // recalc on open + remove gridlines (workbook-level)
   wb.Workbook = wb.Workbook || {};
   wb.Workbook.CalcPr = { fullCalcOnLoad: true };
   wb.Workbook.Views = [{ showGridLines: false }];
@@ -2203,20 +2212,19 @@ function exportXLSX() {
   const streetName = document.getElementById("addr-street")?.value || "";
   const addressLine = (streetNo + " " + streetName).trim();
 
-  // =========================
+  // -------------------------
   // README
-  // =========================
+  // -------------------------
   const readmeText = [
     ["READ ME — How to use this exported Excel model"],
     [""],
     ["Blue cells = editable inputs. Grey cells = formulas."],
     [""],
     ["Scenario selector (Inputs!B3)"],
-    ["Type Base, Downside, or Upside. The scenario does not overwrite your inputs; it adjusts them to create Effective assumptions."],
+    ["Type Base, Downside, or Upside. Scenario adjusts 'Effective' assumptions used by the model."],
     [""],
     ["Inputs vs Assumptions"],
     ["Inputs = deal facts (price, rents). Assumptions = beliefs (growth, expenses, appreciation)."],
-    ["The model uses Effective assumptions (scenario-adjusted) to calculate cash flows."],
     [""],
     ["Checks (Summary tab)"],
     ["Quick red-flag tests lenders/bankers use (DSCR, Year 1 cash flow, IRR hurdle)."],
@@ -2228,9 +2236,9 @@ function exportXLSX() {
   styleRange(wsReadme, "A1:A1", STY.title);
   styleRange(wsReadme, "A2:A30", STY.note);
 
-  // =========================
+  // -------------------------
   // SCENARIOS
-  // =========================
+  // -------------------------
   const scenAOA = [
     ["Scenario", "Rent Mult", "Vacancy +", "Rent Growth +", "Appreciation +", "Expense Ratio +"],
     ["Base",      1.00,      0.00,        0.00,           0.00,             0.00],
@@ -2250,9 +2258,9 @@ function exportXLSX() {
   styleRange(wsScen, "A6:F8", STY.note);
   wsScen["!protect"] = { password: BANKER_PW, selectLockedCells: true, selectUnlockedCells: true };
 
-  // =========================
-  // INPUTS (same layout you already had; keeping it stable)
-  // =========================
+  // -------------------------
+  // INPUTS
+  // -------------------------
   const inputsAOA = [
     ["ADUe diligence — Standalone Model", "", ""],
     ["Property", addressLine || "(enter on site)", "Used for labeling + exports."],
@@ -2331,13 +2339,10 @@ function exportXLSX() {
   wsInputs["!sheetViews"] = [{ showGridLines: false }];
   styleRange(wsInputs, "A1:C1", STY.title);
 
-  // Section bars (apply AFTER label styling so they don't get overwritten)
   styleRange(wsInputs, "A2:A70", STY.label);
   styleRange(wsInputs, "C2:C70", STY.note);
-
   [5,12,27,33,38,45,53].forEach(r => styleRange(wsInputs, `A${r}:C${r}`, STY.bar));
 
-  // Blue inputs
   const blueCells = [
     "B3",
     "B6","B7","B8","B9","B10",
@@ -2347,7 +2352,6 @@ function exportXLSX() {
   ];
   blueCells.forEach(a => styleCell(wsInputs, a, STY.input));
 
-  // Formats
   ["B6","B7","B8","B9","B18","B19"].forEach(a => wsInputs[a].z = "$#,##0");
   ["B10","B14","B15","B16","B17","B20","B21","B22","B23","B25","B28","B31","B34","B35","B36"].forEach(a => wsInputs[a].z = "0.00%");
   wsInputs["B29"].z = "0.000%";
@@ -2355,14 +2359,12 @@ function exportXLSX() {
   wsInputs["B24"].z = "0";
   wsInputs["B30"].z = "0";
 
-  // Scenario pulls
   wsInputs["B39"] = { t:"n", f:'INDEX(Scenarios!$B$2:$B$4, MATCH($B$3, Scenarios!$A$2:$A$4, 0))', v:1, z:"0.00" };
   wsInputs["B40"] = { t:"n", f:'INDEX(Scenarios!$C$2:$C$4, MATCH($B$3, Scenarios!$A$2:$A$4, 0))', v:0, z:"0.00%" };
   wsInputs["B41"] = { t:"n", f:'INDEX(Scenarios!$D$2:$D$4, MATCH($B$3, Scenarios!$A$2:$A$4, 0))', v:0, z:"0.00%" };
   wsInputs["B42"] = { t:"n", f:'INDEX(Scenarios!$E$2:$E$4, MATCH($B$3, Scenarios!$A$2:$A$4, 0))', v:0, z:"0.00%" };
   wsInputs["B43"] = { t:"n", f:'INDEX(Scenarios!$F$2:$F$4, MATCH($B$3, Scenarios!$A$2:$A$4, 0))', v:0, z:"0.00%" };
 
-  // Effective assumptions
   wsInputs["B47"] = { t:"n", f:"$B$8*$B$39", v:num("rent-main"), z:"$#,##0" };
   wsInputs["B48"] = { t:"n", f:"$B$9*$B$39", v:num("rent-monthly"), z:"$#,##0" };
   wsInputs["B49"] = { t:"n", f:"MIN(MAX($B$10 + $B$40, 0), 0.5)", v:num("rent-vacancy")/100, z:"0.00%" };
@@ -2370,7 +2372,6 @@ function exportXLSX() {
   wsInputs["B51"] = { t:"n", f:"$B$16 + $B$42", v:num("dcf-appreciation")/100, z:"0.00%" };
   wsInputs["B52"] = { t:"n", f:"$B$15 + $B$43", v:num("dcf-expense-ratio")/100, z:"0.00%" };
 
-  // Derived
   wsInputs["B54"] = { t:"n", f:"$B$6+$B$7", v:(num("dcf-purchase")+num("dcf-adu-cost")), z:"$#,##0" };
   wsInputs["B55"] = { t:"n", f:"$B$54*$B$28", v:model.loanAmount, z:"$#,##0" };
   wsInputs["B56"] = { t:"n", f:"$B$54*(1-$B$28)", v:model.equity, z:"$#,##0" };
@@ -2381,7 +2382,6 @@ function exportXLSX() {
   wsInputs["B61"] = { t:"n", f:"$B$54*(1-$B$35)", v:model.depreciableBasis, z:"$#,##0" };
   wsInputs["B62"] = { t:"n", f:"$B$61/27.5", v:model.annualDepr, z:"$#,##0" };
 
-  // Make calc cells grey/locked
   [
     "B39","B40","B41","B42","B43",
     "B47","B48","B49","B50","B51","B52",
@@ -2391,9 +2391,9 @@ function exportXLSX() {
   wsInputs["!freeze"] = { ySplit: "5", topLeftCell: "A6", activePane: "bottomLeft", state: "frozen" };
   wsInputs["!protect"] = { password: BANKER_PW, selectLockedCells: true, selectUnlockedCells: true };
 
-  // =========================
+  // -------------------------
   // DEBT
-  // =========================
+  // -------------------------
   const debtAOA = [["Year","Beg Balance","Principal","Interest","End Balance","Debt Service"]];
   for (let i = 1; i <= H; i++) {
     const row = i + 1;
@@ -2413,9 +2413,9 @@ function exportXLSX() {
   styleRange(wsDebt, "A1:F1", STY.header);
   wsDebt["!protect"] = { password: BANKER_PW, selectLockedCells: true, selectUnlockedCells: false };
 
-  // =========================
+  // -------------------------
   // CASH FLOW
-  // =========================
+  // -------------------------
   const cfHeader = ["Year","GPR","Vacancy","EGI","Prop Tax","Insurance","Mgmt","Maint","Reserves","Total OpEx","NOI","Debt Svc","Levered CF"];
   const cfAOA = [cfHeader];
 
@@ -2445,9 +2445,9 @@ function exportXLSX() {
   styleRange(wsCF, "A1:M1", STY.header);
   wsCF["!protect"] = { password: BANKER_PW, selectLockedCells: true, selectUnlockedCells: false };
 
-  // =========================
+  // -------------------------
   // RETURNS (hidden helper)
-  // =========================
+  // -------------------------
   const wsRet = XLSX.utils.aoa_to_sheet([["Year","Cash Flow"]]);
   wsRet["!sheetViews"] = [{ showGridLines: false }];
   wsRet["A2"] = { t:"n", v:0, z:"0" };
@@ -2465,9 +2465,9 @@ function exportXLSX() {
   styleRange(wsRet, "A1:B1", STY.header);
   wsRet["!protect"] = { password: BANKER_PW, selectLockedCells: true, selectUnlockedCells: false };
 
-  // =========================
-  // SUMMARY (fix #NAME? by quoting 'Cash Flow')
-  // =========================
+  // -------------------------
+  // SUMMARY
+  // -------------------------
   const wsSum = XLSX.utils.aoa_to_sheet([
     ["ADUe diligence — Summary", "", "", ""],
     ["Property", addressLine || "(enter on site)", "", ""],
@@ -2494,32 +2494,25 @@ function exportXLSX() {
   wsSum["!sheetViews"] = [{ showGridLines: false }];
 
   styleRange(wsSum, "A1:D1", STY.title);
-
-  // Labels/notes first
   styleRange(wsSum, "A2:A3", STY.label);
   styleRange(wsSum, "A6:A11", STY.label);
   styleRange(wsSum, "A15:A17", STY.label);
   styleRange(wsSum, "D6:D11", STY.note);
   styleRange(wsSum, "D15:D17", STY.note);
 
-  // Header bars (apply after label styling so they don't get overwritten)
   styleRange(wsSum, "A5:D5", STY.bar);
   styleRange(wsSum, "A14:D14", STY.bar);
 
-  // Values
   styleRange(wsSum, "B6:B11", STY.calc);
   styleRange(wsSum, "B15:B17", STY.calc);
-
-  // Border box (thinner than before)
   styleRange(wsSum, "A6:B11", STY.box);
 
   wsSum["!protect"] = { password: BANKER_PW, selectLockedCells: true, selectUnlockedCells: false };
-  
-  // =========================
+
+  // Apply Avenir + vertical center to all sheets (ONE TIME)
+  [wsReadme, wsSum, wsInputs, wsScen, wsDebt, wsCF, wsRet].forEach(applyBaseStyle);
+
   // Write sheets (clean order)
-  // =========================
-  // ===== APPLY BASE FONT + VERTICAL CENTER TO ALL SHEETS (paste once) =====
-[wsReadme, wsSum, wsInputs, wsScen, wsDebt, wsCF, wsRet].forEach(applyBaseStyle);
   XLSX.utils.book_append_sheet(wb, wsReadme, "README");
   XLSX.utils.book_append_sheet(wb, wsSum, "Summary");
   XLSX.utils.book_append_sheet(wb, wsInputs, "Inputs");
