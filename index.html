@@ -1127,6 +1127,25 @@ table tbody tr:hover {
   <a href="#sec-glossary">glossary</a>
 </nav>
 
+<!-- ===== ADDRESS (paste right after </nav> of the TOC) ===== -->
+<section class="card" id="sec-address">
+  <span class="section-num">Setup</span>
+  <h2>property address</h2>
+  <p class="desc">Used to label exports. This will name your .xlsx file.</p>
+
+  <div class="input-row cols-3">
+    <div class="input-group">
+      <label for="addr-number">Street #</label>
+      <input type="text" id="addr-number" placeholder="e.g. 521" inputmode="numeric">
+    </div>
+
+    <div class="input-group" style="grid-column: span 2;">
+      <label for="addr-street">Street name</label>
+      <input type="text" id="addr-street" placeholder="e.g. Main St">
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ -->
 <!-- SECTION 1: PROPERTY & ADU FEASIBILITY                        -->
 <!-- ============================================================ -->
@@ -2064,6 +2083,12 @@ function updateAll() {
 }
 
 // ===== XLSX EXPORT =====
+function sanitizeFilePartNoHyphen(str) {
+  return (str || "")
+    .trim()
+    .replace(/\s+/g, "")           // remove spaces (NO hyphens)
+    .replace(/[^a-zA-Z0-9]/g, ""); // remove punctuation/special chars
+}
 function exportXLSX() {
   const wb = XLSX.utils.book_new();
 
@@ -2230,9 +2255,15 @@ function exportXLSX() {
   });
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-  const today = new Date();
-  const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-  XLSX.writeFile(wb, dateStr + '_model.xlsx');
+    // ===== FILENAME FROM ADDRESS (NO hyphens) =====
+  const numPart = sanitizeFilePartNoHyphen(document.getElementById('addr-number')?.value);
+  const streetPart = sanitizeFilePartNoHyphen(document.getElementById('addr-street')?.value);
+
+  const baseName = (numPart && streetPart)
+    ? `${numPart}_${streetPart}_Model`
+    : `Model_${new Date().toISOString().slice(0,10)}`; // fallback if blank
+
+  XLSX.writeFile(wb, baseName + '.xlsx');
 }
 
 // ===== ANIMATIONS =====
