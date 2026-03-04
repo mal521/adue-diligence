@@ -90,6 +90,27 @@ html.light .jargon .tip {
 html.light header h1 {
   filter: none;
 }
+html.light .metric-card,
+html.light .glossary-item {
+  background: #e8e4dc;
+}
+html.light th {
+  background: #e5e1d9;
+}
+html.light .jargon-box {
+  background: #e8e4dc;
+  border-color: var(--border);
+}
+html.light .site-nav {
+  background: #e5e1d9;
+}
+html.light .toggle-group button.active {
+  color: #fff;
+}
+html.light .cost-breakdown li:hover,
+html.light table tbody tr:hover {
+  background: #e5e1d9;
+}
 
 /* ===== THEME TOGGLE ===== */
 .theme-toggle {
@@ -1049,10 +1070,6 @@ table tbody tr:hover {
   color: var(--cyan);
   border-bottom: 1px solid var(--cyan);
 }
-html.light .site-nav {
-  background: rgba(0,0,0,0.03);
-}
-
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
