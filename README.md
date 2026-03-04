@@ -2,8 +2,6 @@
 
 A beginner-friendly financial model for evaluating properties where an ADU (Accessory Dwelling Unit) can be built. Delivered as a single-page web app with a vaporwave/outrun aesthetic on an architectural dot-grid background.
 
-**Live site:** https://adue-diligence.netlify.app
-
 ## Features
 - **Property & ADU Feasibility** - guided checklist with green/yellow/red scoring
 - **Legal & Permitting** - state-specific guidance (CA, OR, WA, TX, CO) and timeline estimates
